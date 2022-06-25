@@ -1,0 +1,49 @@
+@startuml title class
+class Address
+{
+- sockaddr_in sockAddress
++ Address(int port, string ip)
++ int getPort()
++ string port2string()
++ sockaddr* getSockAddress()
+}
+
+class Sockets
+{
+- int fd_
++ Sockets(int fd)
++ void bind()
++ void listen()
++ void accept()
++ void close()
+}
+
+class Epoller
+{
+- int epollfd_
+- vector<epoll_event> listenEvents_
++ void poll()
++ void registerFd(int fd)
++ char buffer_[]
+}
+
+class EventLoop
+{
+- bool isLooping_
+- Epoller* epoller_
++ loop()
+}
+
+Address ..> Sockets
+Sockets -o Epoller
+Epoller ..o EventLoop
+@enduml
+
+@startuml title onConnectionSequcence
+-->EventLoop: loop()
+EventLoop -> Epoller: poll()
+return timeout()
+Epoller -> Sockets: accept()
+return  clientSock
+Epoller -> :registerFd()
+@enduml
