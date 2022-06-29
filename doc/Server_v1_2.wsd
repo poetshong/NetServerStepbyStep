@@ -1,0 +1,19 @@
+@startuml title onConnectionSequcence
+-->EventLoop: loop()
+EventLoop -> Epoller: poll()
+return timeout()
+Epoller -> Sockets: accept()
+return  clientSock
+Epoller -> :registerFd()
+@enduml
+
+@startuml title onReadable
+-->EventLoop: loop()
+EventLoop -> Epoller: poll()
+return timeout()
+Epoller -> EventLoop: activeChannels_
+EventLoop -> Channel_A: handleEvents()
+Channel_A -> :ReadableCallback()
+EventLoop -> Channel_B: handleEvents()
+Channel_B -> :ReadableCallback()
+@enduml
