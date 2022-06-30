@@ -1,0 +1,25 @@
+@startuml title Initialization
+Acceptor -> Acceptor: init()/ctor()
+activate Acceptor
+Acceptor -> Channel: listen()
+Channel -> Channel: enabledRead()
+Channel -> EventLoop: update()
+EventLoop -> Epoller: update()
+Epoller -> :update()
+note over Epoller
+add Channel to epollfd_ listening
+end note
+@enduml
+
+@startuml title newConnection
+-->EventLoop: loop()
+EventLoop -> Epoller: poll()
+return timeout()
+Epoller -> EventLoop: activeChannels_
+EventLoop -> Channel: handleEvents()
+Channel -> :ReadableCallback()
+note right of Channel
+ReadableCallback
+is Acceptor::acceptor
+end note
+@enduml
