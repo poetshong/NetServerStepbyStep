@@ -1,0 +1,2 @@
+add_executable(ServerTest ServerTest.cpp)
+target_link_libraries(ServerTest src)
