@@ -3,6 +3,7 @@
 #include "Address.h"
 #include "Sockets.h"
 #include "Callbacks.h"
+#include "Buffer.h"
 
 #include <memory>
 #include <string>
@@ -10,10 +11,10 @@
 class EventLoop;
 class Channel;
 
-class TcpConnection
+class TcpConnection: public std::enable_shared_from_this<TcpConnection>
 {
 public:
-    enum ConnectState {CONNECTED, CONNECTING, DISCONNECTED};
+    enum ConnectState {CONNECTED, CONNECTING, DISCONNECTED, DISCONNECTING};
 
     TcpConnection(EventLoop* loop, const std::string name, int clientfd, const Address& localaddr, const Address& peerAddr);
 
@@ -33,8 +34,13 @@ public:
     bool disconnected() const { return connectState_ == DISCONNECTED; }
 
     std::string name() const { return name_; }
+
+    void send(const std::string& message);
+    void shutdown();
+
 private:
     void handleRead();
+    void handleWrite();
     void handleClose();
 
     std::string name_;
@@ -44,6 +50,10 @@ private:
     Address peerAddr_;
     EventLoop* loop_;
     ConnectState connectState_;
+
+    Buffer inputBuffer_;
+    Buffer outputBuffer_;
+
     MessageCallback messageCallback_;
     ConnectionCallback connectionCallback_;
     CloseCallback closeCallback_;

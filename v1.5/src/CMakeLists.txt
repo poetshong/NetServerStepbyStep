@@ -7,6 +7,7 @@ set(SRC_LIST
     Acceptor.cpp Acceptor.h
     TcpServer.cpp TcpServer.h
     TcpConnection.cpp TcpConnection.h
+    Buffer.cpp Buffer.h
     Callbacks.h
     )
 
@@ -22,6 +23,7 @@ target_link_libraries(src pthread)
 #     Channel.h
 #     # Thread.h
 #     Acceptor.h
+#     Buffer.h
 #     )
 
 # install(FILES ${HEADERS} DESTINATION include)

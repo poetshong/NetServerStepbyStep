@@ -1,2 +1,2 @@
 # !bash/bin
-./build/bin/ServerTest
+./build/bin/EchoServerTest

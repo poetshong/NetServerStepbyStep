@@ -1,5 +1,4 @@
 #include "TcpServer.h"
-#include "TcpConnection.h"
 #include "EventLoop.h"
 
 #include <iostream>
@@ -33,20 +32,20 @@ void TcpServer::newConnection(int sockfd, const Address& peerAddr)
     // newConnection established called. Execute by Acceptor::accept()
     Address localAddr(localAddr_);
     std::string name = ipPort_ + "-" + std::to_string(nextConnIdx_);
-    std::unique_ptr<TcpConnection> connection(std::make_unique<TcpConnection>(
+    TcpConnectionPtr connection(new TcpConnection(
         loop_, name, sockfd, localAddr, peerAddr
     ));
     cout << "TcpServer::newConnection: [" << name << "] established\n";
-    connection->setConnectionCallback(connectonCallback_);
+    connection->setConnectionCallback(connectionCallback_);
     connection->setMessageCallback(messageCallback_);
     connection->setCloseCallback(std::bind(&TcpServer::removeConnection, this, _1));
     
     ++nextConnIdx_;
     connection->connectionEstablished();
-    tcpConnections_[name] = std::move(connection);  
+    tcpConnections_[name] = connection;  
 }
 
-void TcpServer::removeConnection(TcpConnection* conn)
+void TcpServer::removeConnection(const TcpConnectionPtr& conn)
 {
     cout << "TcpServer::removeConnection() [" << conn->name() << "]" << std::endl;
     // conn->connectionDestroy();

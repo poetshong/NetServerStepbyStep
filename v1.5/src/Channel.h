@@ -2,8 +2,6 @@
 
 #include "Callbacks.h"
 
-#include <functional>
-
 class EventLoop;
 
 class Channel
@@ -19,6 +17,7 @@ public:
     int events() { return events_; }
     bool isNoneEvent() const { return events_ == NoEvent; }
     bool isPolling() const { return polling_; }
+    bool isWriting() const { return events_ & WritableEvent; }
     void setPolling(bool on) { polling_ = on; }
 
     void enabledReadable() { events_ |= ReadableEvent; update(); }

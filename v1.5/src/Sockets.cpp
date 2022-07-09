@@ -34,7 +34,7 @@ void Sockets::bind(const Address& localAddress)
 void Sockets::listen()
 {
     // note: listen(fd, ...) the fd is not equal the return value
-    printf("listen...\n");
+    printf("Sockets::listen()\n");
     int ret = ::listen(fd_, 16);
     assert(ret != -1);
 }
@@ -42,11 +42,21 @@ void Sockets::listen()
 int Sockets::accept(Address* peerAddress)
 {
     // note: accept4(fd, ...) the fd is not equal the return value
-    printf("accept...\n");
+    printf("Sockets::accept()\n");
     int clientFd = ::accept4(fd_, peerAddress->getSockAddress(), peerAddress->addrLen(),
                     SOCK_CLOEXEC | SOCK_NONBLOCK);
     assert(clientFd > 0);
     return clientFd;
+}
+
+void Sockets::shutdownWrite()
+{
+    int res = 0;
+    if (res = ::shutdown(fd_, SHUT_WR) < 0)
+    {
+        printf("shutdownWrite abort %d \n", errno);
+        abort();
+    }
 }
 
 void Sockets::close()

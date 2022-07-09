@@ -9,7 +9,7 @@
 #include <iostream>
 using std::cout;
 
-void defaultConnectionCallback(const TcpConnection* conn)
+void defaultConnectionCallback(const TcpConnectionPtr& conn)
 {
     printf("Connection [%s]: (%d->%d) is %s\n", 
         conn->name().c_str(),
@@ -18,10 +18,10 @@ void defaultConnectionCallback(const TcpConnection* conn)
         (conn->connected()? "UP": "DOWN"));
 }
 
-void defaultMessageCallback(const TcpConnection* conn, char* buf, int len)
+void defaultMessageCallback(const TcpConnectionPtr& conn, Buffer* buf)
 {
-    printf("defaultMessageCallback(): onMessage(): received %d bytes for connection [%s]\n",
-            len, conn->name().c_str());
+    printf("defaultMessageCallback(): onMessage(): received %ld bytes for connection [%s]\n",
+            buf->readableSize(), conn->name().c_str());
 }
 
 TcpConnection::TcpConnection(EventLoop* loop, std::string name, int clientfd, const Address& localaddr, const Address& peerAddr):
@@ -36,16 +36,18 @@ TcpConnection::TcpConnection(EventLoop* loop, std::string name, int clientfd, co
     messageCallback_(defaultMessageCallback)
 {
     channel_->setReadableCallback(std::bind(&TcpConnection::handleRead, this));
+    channel_->setWritableCallback(std::bind(&TcpConnection::handleWrite, this));
     channel_->setCloseEventCallback(std::bind(&TcpConnection::handleClose, this));
 }
 
 void TcpConnection::connectionEstablished()
 {
+    printf("TcpConnection::connectionEstablished()\n");
     assert(connectState_ == CONNECTING);
     setConnectState(CONNECTED);
     channel_->enabledReadable();
-
-    connectionCallback_(this);
+    
+    connectionCallback_(shared_from_this());
 }
 
 // void TcpConnection::connectionDestroy()
@@ -62,16 +64,50 @@ void TcpConnection::connectionEstablished()
 
 void TcpConnection::handleRead()
 {
-    char buf[65536];
-    bzero(buf, sizeof(buf));
-    ssize_t n = ::read(channel_->fd(), buf, sizeof(buf));
+    printf("TcpConnection::handleRead()\n");
+    ssize_t n = inputBuffer_.readFd(channel_->fd());
     if (n > 0)
     {
-        messageCallback_(this, buf, n);
+        messageCallback_(shared_from_this(), &inputBuffer_);
     }
     else if (n == 0)
     {
         handleClose();
+    }
+}
+
+void TcpConnection::handleWrite()
+{
+    printf("TcpConnection::handleWrite()\n");
+    if (channel_->isWriting())
+    {
+        ssize_t n = ::write(channel_->fd(),
+                            outputBuffer_.readIndexPtr(),
+                            outputBuffer_.readableSize());
+        if (n > 0)
+        {
+            outputBuffer_.retrieve(n);
+            if (outputBuffer_.readableSize() == 0)
+            {
+                channel_->disabledWritable();
+                
+                // ？？
+                if (connectState_ == DISCONNECTING)
+                {
+                    shutdown();
+                }
+            }
+        }
+        else
+        {
+            printf("TcpConnection::handleWrite() error/n");
+            abort();
+        }
+
+    }
+    else
+    {
+        printf("Connection is down, no more writing/n");    
     }
 }
 
@@ -80,6 +116,49 @@ void TcpConnection::handleClose()
     cout << "TcpConnection::handleClose() Connection [" << name_ << "] from port:[" << peerAddr_.port2string() << "]\n";
     setConnectState(DISCONNECTED);
     channel_->diabledAllEvents();
-    connectionCallback_(this);
-    closeCallback_(this);
+    connectionCallback_(shared_from_this());
+    closeCallback_(shared_from_this());
+}
+
+void TcpConnection::shutdown()
+{
+    if (connectState_ != CONNECTED && !channel_->isWriting())
+    {
+        setConnectState(DISCONNECTING);
+        socket_->shutdownWrite();
+    }
+}
+
+void TcpConnection::send(const std::string& message)
+{
+    printf("TcpConnection::send(string&)\n");
+    ssize_t nwrote = 0;
+    // channel has no writing event
+    // output buffer has send all data
+    // write data directly
+    if (!channel_->isWriting() && outputBuffer_.readableSize() == 0)
+    {
+
+        nwrote = ::write(channel_->fd(), message.data(), message.size());
+        if (nwrote >= 0)
+        {
+            // log
+        }
+        else
+        {
+            nwrote = 0;
+            // error
+        }
+
+    }
+
+    assert(nwrote >= 0);
+    if (static_cast<size_t>(nwrote) < message.size())
+    {
+        outputBuffer_.append(message.data() + nwrote, message.size() - nwrote);
+        if (!channel_->isWriting())
+        {
+            channel_->enabledWritable();
+        }
+    }
 }

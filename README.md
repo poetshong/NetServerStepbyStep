@@ -82,3 +82,12 @@ It's a discard server with based-object programming and I/O multiplexing with in
 
 2022.06.15
 * Notes for ver1.4 finished.
+
+2022.07.08
+* Buffer works.
+* modify Sockets, TcpConnection, TcpServer, Sockets and Callbacks.
+
+2022.07.09
+* DayTimeServerTest works.
+* EchoTimeServerTest works.
+* DiscardServerTest works.

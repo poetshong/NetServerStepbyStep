@@ -21,6 +21,7 @@ public:
 
     struct sockaddr_in getLocalAddr(int sockfd);
 
+    void shutdownWrite();
     void close();
 private:
     int fd_;
