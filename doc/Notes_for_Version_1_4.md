@@ -7,9 +7,9 @@ A daytime Server with based-object programming
 
 - [Notes for Version 1.4](#notes-for-version-14)
 - [Improvement](#improvement)
-- [测试](#测试)
-  - [服务器逻辑](#服务器逻辑)
-  - [程序内存泄漏](#程序内存泄漏)
+- [Test](#test)
+  - [业务逻辑 Business Logic](#业务逻辑-business-logic)
+  - [程序内存泄漏 Memory Leak](#程序内存泄漏-memory-leak)
 - [Other](#other)
 - [Bugs and Summary](#bugs-and-summary)
 - [Reference](#reference)
@@ -127,12 +127,12 @@ private:
 下面是断开连接的时序图：
 ![断开连接时序图](./img/Server_v1_4_closeConnection.png)
 
-# 测试
+# Test
 该版本有两个测试角度
 1. 服务器逻辑
 2. 服务器是否存在内存泄漏（虽然使用了智能指针，但是某些代码中显式调用了 `new` ）
 
-## 服务器逻辑
+## 业务逻辑 Business Logic
 逻辑如下：
 ```c++
 // ServerTest.cpp
@@ -189,7 +189,7 @@ TcpServer::removeConnection() erase connection [9190-1]
 EventLoop::polling()----------------------
 ```
 说明程序执行的逻辑和之前的分析一致
-## 程序内存泄漏
+## 程序内存泄漏 Memory Leak
 使用 `valgrind` 检查内存泄漏：
 ```bash
 valgrind --leak-check=full --show-leak-kinds=all ./build/bin/ServerTest
