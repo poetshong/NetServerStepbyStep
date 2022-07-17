@@ -74,9 +74,6 @@ It's a net library with based-object programming and I/O multiplexing with init 
 * Notes for ver1.2 finished.
 
 ## Version 1.3
-2022.06.11
-* Thread works.
-
 2022.06.12
 * Acceptor works.
 * Reprogramming EventLoop, Channel, Epoller.
@@ -103,11 +100,19 @@ It's a net library with based-object programming and I/O multiplexing with init 
 * DiscardServerTest works.
 
 ## Version 1.6
-> Timer
-> TimerQueue
+2022.07.15
+* timerfd always trigger epoll_wait even if not timeout.
+* Timer works.
+* TimerQueue works
+
+2022.07.16
+* TimerfdTest works.
+* TimerTest works.
 
 ## Version 1.7
-> Multi-thread
+2022.07.17
+* Thread works.
+* ThreadTest works.
 
 ## Version 1.8
 > chrono and log
