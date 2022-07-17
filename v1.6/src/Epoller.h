@@ -14,11 +14,14 @@ public:
     ~Epoller();
     void poll(int timeout, std::vector<Channel*>& activeChannels);
     void updateChannel(Channel* channel);
-    // void removeChannel(Channel* chanenl);
+    void removeChannel(Channel* chanenl);
 private:
+    static const int NEW = -1;
+    static const int ADDED = 1;
+    static const int DEL = 2;
     void updateChannel(Channel* channel, int op);
 
-    const static int MaxEventNums = 128;
+    const static int DeaultEventNums = 128;
     
     EventLoop* loop_;
     int epollfd_;

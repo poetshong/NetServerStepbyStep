@@ -50,17 +50,18 @@ void TcpConnection::connectionEstablished()
     connectionCallback_(shared_from_this());
 }
 
-// void TcpConnection::connectionDestroy()
-// {
-//     // if (connectState_ == CONNECTED)
-//     // {
-//     //     setConnectState(DISCONNECTED);
-//     //     channel_->diabledAllEvents();
-//     //     cout << "TcpConneticon::connectionDestroy() Connection [" << name_ << "] from port:[" << peerAddr_.port2string() << "] disconneted\n";
-//     //     connectionCallback_(this);
-//     // }
-//     cout << "TcpConneticon::connectionDestroy() Connection [" << name_ << "] from port:[" << peerAddr_.port2string() << "] disconneted\n";
-// }
+void TcpConnection::connectionDestroy()
+{
+    if (connectState_ == CONNECTED)
+    {
+        setConnectState(DISCONNECTED);
+        channel_->diabledAllEvents();
+        cout << "TcpConneticon::connectionDestroy() Connection [" << name_ << "] from port:[" << peerAddr_.port2string() << "] disconneted\n";
+        connectionCallback_(shared_from_this());
+    }
+    channel_->remove();
+    cout << "TcpConneticon::connectionDestroy() Connection [" << name_ << "] from port:[" << peerAddr_.port2string() << "] disconneted\n";
+}
 
 void TcpConnection::handleRead()
 {
@@ -116,6 +117,7 @@ void TcpConnection::handleClose()
     cout << "TcpConnection::handleClose() Connection [" << name_ << "] from port:[" << peerAddr_.port2string() << "]\n";
     setConnectState(DISCONNECTED);
     channel_->diabledAllEvents();
+    
     connectionCallback_(shared_from_this());
     closeCallback_(shared_from_this());
 }

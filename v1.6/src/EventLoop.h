@@ -12,6 +12,7 @@
 class Epoller;
 class Channel;
 class TimerQueue;
+class Timer;
 
 class EventLoop
 {
@@ -22,18 +23,17 @@ public:
     ~EventLoop();
     void loop();
     void updateChannel(Channel* channel);
-    // void removeChannel(Channel* channel);
+    void removeChannel(Channel* channel);
     void quit();
 
     void runAt(Timestamp when, TimeCallback cb);
     void runAfter(Microsecond delayMill, TimeCallback cb);
     void runEvery(Microsecond intervalMill, TimeCallback cb);
-    void cancelTimer(TimerId timerId);
+    void cancelTimer(Timer* timer);
 
     // void functorEnqueue(Functor func);
 private:
     // void doPendingFunctor();
-
     std::atomic_bool isLooping_;
     std::atomic_bool quit_;
 

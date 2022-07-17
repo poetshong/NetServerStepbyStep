@@ -14,7 +14,7 @@ Channel::Channel(EventLoop* loop, int fd):
     fd_(fd), 
     events_(0), 
     revents_(0),
-    polling_(false),
+    status_(-1),
     closeEventCallback_(nullptr),
     readEventCallback_(nullptr),
     writeEventCallback_(nullptr)
@@ -40,16 +40,22 @@ void Channel::handleEvents()
         }
     }
 
-    // if (revents_ & EPOLLOUT)
-    // {
-    //     if (writeEventCallback_)
-    //     {
-    //         writeEventCallback_();
-    //     }
-    // }
+    if (revents_ & EPOLLOUT)
+    {
+        if (writeEventCallback_)
+        {
+            writeEventCallback_();
+        }
+    }
 }
 
 void Channel::update()
 {
     loop_->updateChannel(this);
+}
+
+void Channel::remove()
+{
+    assert(isNoneEvent());
+    loop_->removeChannel(this);
 }

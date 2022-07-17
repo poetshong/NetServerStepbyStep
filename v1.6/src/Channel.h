@@ -15,10 +15,11 @@ public:
     void setReturnEvents(int revents) { revents_ = revents; }
     void setEvents(int events) { events_ = events; };
     int events() { return events_; }
+    int returnEvents() const { return revents_; }
     bool isNoneEvent() const { return events_ == NoEvent; }
-    bool isPolling() const { return polling_; }
     bool isWriting() const { return events_ & WritableEvent; }
-    void setPolling(bool on) { polling_ = on; }
+    int getStatus() const { return status_; }
+    void setStatus(int st) { status_ = st; }
 
     void enabledReadable() { events_ |= ReadableEvent; update(); }
     void enabledWritable() { events_ |= WritableEvent; update(); }
@@ -43,7 +44,7 @@ private:
     int fd_;
     int events_;
     int revents_;
-    bool polling_;
+    int status_;
     EventLoop* loop_;
     WriteEventCallback writeEventCallback_;
     ReadEventCallback readEventCallback_;

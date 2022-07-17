@@ -35,7 +35,7 @@ void TcpServer::newConnection(int sockfd, const Address& peerAddr)
     TcpConnectionPtr connection(new TcpConnection(
         loop_, name, sockfd, localAddr, peerAddr
     ));
-    cout << "TcpServer::newConnection: [" << name << "] established\n";
+    printf("TcpServer::newConnection: [%s] established\n", name.c_str());
     connection->setConnectionCallback(connectionCallback_);
     connection->setMessageCallback(messageCallback_);
     connection->setCloseCallback(std::bind(&TcpServer::removeConnection, this, _1));
@@ -47,8 +47,7 @@ void TcpServer::newConnection(int sockfd, const Address& peerAddr)
 
 void TcpServer::removeConnection(const TcpConnectionPtr& conn)
 {
-    cout << "TcpServer::removeConnection() [" << conn->name() << "]" << std::endl;
-    // conn->connectionDestroy();
-    cout << "TcpServer::removeConnection() erase connection [" << conn->name() << "]" << std::endl;
-    tcpConnections_.erase(conn->name());   
+    printf("TcpServer::removeConnection() [%s]\n",conn->name().c_str());
+    tcpConnections_.erase(conn->name());
+    conn->connectionDestroy();
 }

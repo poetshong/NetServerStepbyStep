@@ -17,6 +17,9 @@ A net library with based-object programming
 
 # Bugs and Summary
 
+`timerfd` 会出现一直触发 `epoll_wait` 的情况，即 `epoll_wait` 会瞬间返回
+在类似的 [libnet]() 项目中也有该情况，muduo 却没有出现该情况
+
 [C++ multiple definition](https://www.jianshu.com/p/c028fee0f202)
 
 # Reference

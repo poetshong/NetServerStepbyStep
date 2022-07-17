@@ -1,9 +1,64 @@
 #include "TimerQueue.h"
 #include "EventLoop.h"
 
-#include <sys/timerfd.h>
+
+#include <cstring>
 #include <unistd.h>
 #include <iostream>
+
+static int createTimerfd()
+{
+    int fd = ::timerfd_create(CLOCK_MONOTONIC,
+                                 TFD_NONBLOCK | TFD_CLOEXEC);
+    if (fd < 0)
+    {
+        printf("Create timerfd failed\n");
+        abort();
+    }
+    return fd;
+}
+
+static void readTimerfd(int timerfd)
+{
+    // for read timerfd to avoid triggering always
+    // printf("ReadTimerfd()\n");
+    uint64_t howmany;
+    ssize_t n = ::read(timerfd, &howmany, sizeof howmany);
+    // printf("n = %ld; sizeof buf = %lu\n", n, sizeof(buf));
+    assert(n == sizeof(howmany));
+    // Log
+}
+
+static struct timespec durationFromNow(Timestamp when)
+{
+    // printf("DurationFromNow()\n");
+    auto microseconds = std::chrono::duration_cast<Microsecond>(when - now());
+    if (microseconds < 1ms)
+    {
+        microseconds = 1ms;
+    }
+    struct timespec ts;
+    ts.tv_sec = static_cast<time_t>(microseconds.count() / std::nano::den);
+    ts.tv_nsec = static_cast<long>((microseconds.count() % std::nano::den));
+    return ts;
+}
+
+static void setTimerfd(int timerfd, Timestamp ts)
+{
+    // printf("SetTimerfd()\n");
+    struct itimerspec newValue;
+    struct itimerspec oldValue;
+    bzero(&newValue, sizeof(itimerspec));
+    bzero(&oldValue, sizeof(itimerspec));
+    newValue.it_value = durationFromNow(ts);
+    
+    int ret = ::timerfd_settime(timerfd, 0, &newValue, &oldValue);
+    if (ret < 0)
+    {
+        printf("SetTimerfd() timerfd_settime error\n");
+        abort();
+    }
+}
 
 std::atomic<TimerId> Timer::nextId_;
 
@@ -21,99 +76,112 @@ Timer::Timer(TimeCallback cb, Timestamp when, Microsecond interval):
     canceled_(false),
     timerId_(nextId())
 {
+    printf("Timer %ld is created\n", timerId_);
+}
 
+Timer::~Timer()
+{
+    printf("Timer %ld is destroyed\n", timerId_);
 }
 
 TimerQueue::TimerQueue(EventLoop* loop):
     loop_(loop),
-    timerfd_(::timerfd_create(CLOCK_MONOTONIC,
-                                 TFD_NONBLOCK | TFD_CLOEXEC)),
-    timerfdChannel_(loop, timerfd_),
-    timerList_()
+    timerfd_(createTimerfd()),
+    timerfdChannel_(loop, timerfd_)
 {
-    if (timerfd_ < 0)
-    {
-        // error
-        abort();
-    }
-    timerfdChannel_.setReadableCallback([this]{ this->handleTimingRead(); });
-    timerfdChannel_.enabledReadable();
+    assert(timerfd_ > 0);
     printf("TimerQueue::TimerQueue() timerfd: [%d]\n", timerfd_);
+    timerfdChannel_.setReadableCallback([this] { handleTimingRead(); });
+    timerfdChannel_.enabledReadable();
 }
 
 TimerQueue::~TimerQueue()
 {
     timerfdChannel_.diabledAllEvents();
-    loop_->updateChannel(&timerfdChannel_);
+    timerfdChannel_.remove();
     ::close(timerfd_);
+        for (auto& timer: timerList_)
+    {
+        delete timer.second;
+    }
 }
 
-void TimerQueue::addTimer(TimeCallback cb, Timestamp when, Microsecond interval)
+Timer* TimerQueue::addTimer(TimeCallback cb, Timestamp when, Microsecond interval)
 {
     printf("TimerQueue::addTimer()\n");
-    std::unique_ptr<Timer> newTimer = std::make_unique<Timer>(cb, when, interval);
-    timerIdList_[newTimer->id()] = newTimer.get();
-    timerList_[when] = std::move(newTimer);
+
+    Timer* timer = new Timer(cb, when, interval);
+    auto ret = timerList_.insert({when, timer});
+    if (timerList_.begin() == ret.first)
+    {
+        setTimerfd(timerfd_, when);
+    }
+    return timer;
 }
 
-void TimerQueue::cancelTimer(TimerId timerId)
+void TimerQueue::cancelTimer(Timer* timer)
 {
-    printf("TimerQueue::cancelTimer()\n");
-    Timer* timer = timerIdList_[timerId];
-    if (timer->expired())
-    {
-        timerIdList_.erase(timerId);
-    }
-    else
-    {
-        timer->cancel();
-    }
+    // printf("TimerQueue::cancelTimer()\n");
+    timer->cancel();
+    timerList_.erase({timer->when(), timer});
+    delete timer;
 }
 
 void TimerQueue::handleTimingRead()
 {
-    Timestamp current(now());
+    readTimerfd(timerfd_);
 
-    std::vector<std::unique_ptr<Timer>> expired = getExpired(current);
-    printf("TimerQueue::handleTimingRead()\n");
-    for (auto& timer: expired)
+    Timestamp curr(now());
+    std::vector<Entry> expired = getExpired(curr);
+    // printf("TimerQueue::handleTimingRead()\n");
+    for (auto& e: expired)
     {
-        timer->run();
-        if (timer->needRepeated() && !timer->isCanceled())
+        Timer* timer = e.second;
+        assert(timer->expired(curr));
+        if (!timer->isCanceled())
+        {
+            timer->run();
+        }
+
+        if (!timer->isCanceled() && timer->needRepeated())
         {
             timer->restart();
-            timerList_[timer->when()] = std::move(timer);
+            e.first = timer->when();
+            timerList_.insert(e);
         }
         else
         {
-            TimerId id = timer->id();
-            timerIdList_.erase(id);
+            delete timer;
         }
     }
 
+    if (!timerList_.empty())
+    {
+        setTimerfd(timerfd_, timerList_.begin()->first);
+    }
 }
 
-std::vector<std::unique_ptr<Timer>> TimerQueue::getExpired(Timestamp current)
-{
-    printf("TimerQueue::getExpired()\n");
-    std::vector<std::unique_ptr<Timer>> expired;
-    auto end = timerList_.lower_bound(current);
-    assert(end == timerList_.end() || current < end->first);
-    for (auto iter = timerList_.begin(); iter != end; ++iter)
-    {
-        expired.push_back(std::move(iter->second));
-    }
+std::vector<TimerQueue::Entry> TimerQueue::getExpired(Timestamp curr)
+{ 
+    Entry entry(curr + 1ns, reinterpret_cast<Timer*>(UINTPTR_MAX));
+    std::vector<Entry> expired;
+
+    auto end = timerList_.lower_bound(entry);
+    assert(end == timerList_.end() || curr < end->first);
+    expired.assign(timerList_.begin(), end);
+    // printf("TimerQueue::getExpired() [%lu] timer timeout\n", expired.size());
     timerList_.erase(timerList_.begin(), end);
+
     return expired;
 }
 
-int TimerQueue::firstExpiredTimer() const
+int64_t TimerQueue::firstExpiredTimer() const
 {
-    printf("TimerQueue::firstExpiredTimer()\n");
+    // printf("TimerQueue::firstExpiredTimer()\n");
     if (timerList_.empty())
     {
         return 0;
     }
-    auto diffTime = timerList_.begin()->first - now();
-    return std::chrono::duration_cast<Millisecond>(diffTime).count();
+    auto interval = timerList_.begin()->first - now();
+    return std::chrono::duration_cast<Millisecond>(interval).count();
 }
